@@ -127,8 +127,8 @@ data_clean |>
   fmt_flag(Code) |>
   cols_merge(c("Code", "Entity")) |>
   gt_plt_bar(
-    column = "p8",
-    color = "GoldenRod",
+    column = p8,
+    color = "#ebd5ac",
     scale_type = "number",
     text_color = "#000",
     trim = TRUE,
