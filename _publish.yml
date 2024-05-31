@@ -1,0 +1,4 @@
+- source: warheads.qmd
+  quarto-pub:
+    - id: 450cc3b9-f69a-41f9-acc0-9516555de2e4
+      url: 'https://ahasoplakus.quarto.pub/nuclear-weapons'

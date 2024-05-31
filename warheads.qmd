@@ -1,0 +1,343 @@
+---
+title: "Nuclear Weapons"
+author: "Sukalpo Saha"
+format:
+  dashboard:
+    theme: flatly
+    logo: "nuke.png"
+    scrolling: true
+    orientation: columns
+    nav-buttons:
+      - icon: code-slash
+        href: https://github.com/ahasoplakus/nuclearweapons/
+      - icon: github
+        href: https://github.com/ahasoplakus/
+      - icon: link
+        href: https://ahasoplakus.quarto.pub/
+      - icon: linkedin
+        href: https://www.linkedin.com/in/sukalpo-saha-186329b1/
+      - icon: twitter
+        href: https://twitter.com/saha_sukalpo/
+knitr:
+  opts_chunk:
+    echo: false
+    collapse: true
+    comment: "#>"
+    message: false
+    warning: false
+editor: visual
+---
+
+Nine countries currently have nuclear weapons: Russia, the United States, China, France, the United Kingdom, Pakistan, India, Israel, and North Korea.These nuclear powers differ a lot in how many nuclear warheads they have. The Table shows that the warheads differ in how — and how quickly — they can be used: some are designed for strategic use away from the battlefield, such as against arms industries or infrastructure, while others are for nonstrategic, tactical use on the battlefield. And while some warheads are not deployed, or even retired and queued for dismantlement, a substantial share of them is deployed on ballistic missiles or bomber bases and can be used quickly.
+
+After increasing for almost half a century after their creation in the 1940s, nuclear arsenals reached its peak in the 1980s. Since then we have seen a reversal of this trend, as the table shows . The nuclear powers reduced their arsenals (also number of nuclear tests conducted per year) a lot in the following decades, and the total number of warheads across all countries fell below 20,000 in the 2010s. The decline has slowed since then, and the total stockpile still consists of more than 10,000 warheads. Some countries have also been expanding their arsenals.
+
+```{css}
+.bslib-card {
+    border-style: hidden;
+}
+
+.bslib-gap-spacing>p {
+    font-family: 'Noto Sans';
+}
+```
+
+## Column {width="100%"}
+
+### Row {height="100%"}
+
+```{r}
+## Load required packages
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(gt)
+library(gtExtras)
+```
+
+```{r}
+cut <- seq(1955, 2025, 10)
+time_period <-
+  map(set_names(c("p", "t"), c("period1", "period2")), \(prefix) {
+    map(seq_along(cut), \(i) paste0("Year < ", cut[i], ' ~ "', prefix, i, '"'))
+  })
+
+summ_fun <- function(df, var, period, last = FALSE) {
+  df |>
+    mutate(timeline = case_when(!!!map(period, rlang::parse_expr))) |>
+    group_by(across(c("Entity", "Code", "timeline"))) |>
+    summarize(
+      val = if_else(
+        isFALSE(last), sum({{ var }}, na.rm = TRUE),
+        last({{ var }})
+      ),
+      .groups = "drop"
+    ) |>
+    pivot_wider(
+      names_from = timeline,
+      values_from = val
+    )
+}
+```
+
+```{r}
+data_list <-
+  map(c("inventories.csv", "stockpiles.csv", "tests.csv"), readr::read_csv) |>
+  set_names("inven", "stock", "tests")
+
+data_clean <- data_list$stock |>
+  filter(!Code %in% c("OWID_WRL", "ZAF")) |>
+  summ_fun(
+    `Number of nuclear warheads`,
+    time_period$period1,
+    TRUE
+  ) |>
+  left_join(
+    select(filter(data_list$inven, Code != "OWID_WRL"), -Year),
+    by = c("Entity", "Code")
+  ) |>
+  mutate(
+    change = p4 - p1,
+    change1 = p8 - p4
+  ) |>
+  left_join(
+    summ_fun(
+      data_list$tests,
+      `Number of nuclear weapons tests`,
+      time_period$period2
+    ),
+    by = c("Entity", "Code")
+  )
+```
+
+```{r}
+data_clean |>
+  arrange(desc(p8)) |>
+  gt(rowname_col = "Code") |>
+  fmt_flag(Code) |>
+  cols_merge(c("Code", "Entity")) |>
+  gt_plt_bar(
+    column = "p8",
+    color = "GoldenRod",
+    scale_type = "number",
+    text_color = "#000",
+    trim = TRUE,
+    big.mark = "",
+    width = 60
+  ) |>
+  cols_nanoplot(
+    columns = p1:p8,
+    plot_type = "line",
+    plot_height = "2.8em",
+    new_col_name = "stockpile",
+    new_col_label = "Stockpiles",
+    options = nanoplot_options(
+      data_point_fill_color = "tomato",
+      data_line_stroke_color = "#494949",
+      data_area_fill_color = "GoldenRod"
+    )
+  ) |>
+  cols_nanoplot(
+    columns = t1:t8,
+    plot_type = "line",
+    plot_height = "2.8em",
+    new_col_name = "nuclear_tests",
+    new_col_label = "Tests Conducted",
+    options = nanoplot_options(
+      data_point_fill_color = "tomato",
+      data_line_stroke_color = "#005689",
+      data_area_fill_color = "GoldenRod"
+    )
+  ) |>
+  cols_add(fa1 = change, .before = change) |>
+  cols_add(fa2 = change1, .before = change1) |>
+  gt_fa_rank_change(
+    fa1,
+    palette = c("red", "grey", "green"),
+    fa_type = "turn",
+    show_text = FALSE
+  ) |>
+  gt_fa_rank_change(
+    fa2,
+    palette = c("red", "grey", "green"),
+    fa_type = "turn",
+    show_text = FALSE
+  ) |>
+  cols_unhide("p8") |>
+  cols_move("p8", after = 18) |>
+  tab_spanner(
+    columns = 11:12,
+    label = "Deployed (2023)",
+    id = "deploy"
+  ) |>
+  tab_spanner(
+    columns = 13:14,
+    label = "Non-Deployed (2023)",
+    id = "nondeploy"
+  ) |>
+  tab_spanner(
+    columns = c(15:18, "p8"),
+    label = "Nuclear Stockpiles",
+    id = "percent"
+  ) |>
+  tab_spanner(
+    columns = c("stockpile", "nuclear_tests"),
+    label = "Trend over time",
+    id = "trend"
+  ) |>
+  cols_label(
+    11 ~ "Strategic",
+    12 ~ "Non-strategic",
+    13 ~ "Reserved",
+    14 ~ "Retired",
+    fa1 ~ "",
+    fa2 ~ "",
+    change ~ md("Change (+/-)<br>(1945-1985)"),
+    change1 ~ md("Change (+/-)<br>(1985-2023)"),
+    p8 ~ md("Total (2023)")
+  ) |>
+  cols_width(
+    change ~ px(120),
+    change1 ~ px(120),
+    p8 ~ px(100)
+  ) |>
+  cols_align(align = "center", columns = everything()) |>
+  tab_style(
+    style = cell_text(
+      color = "#494949",
+      v_align = "middle",
+      align = "center"
+    ),
+    locations = cells_column_labels()
+  ) |>
+  tab_style(
+    style = cell_text(color = "#494949"),
+    locations = cells_column_spanners()
+  ) |>
+  tab_style(
+    style = cell_text(color = "#494949"),
+    locations = cells_body(columns = 11:14)
+  ) |>
+  tab_style(
+    style = cell_text(align = "left"),
+    locations = cells_column_labels(columns = c("change", "change1"))
+  ) |>
+  tab_style(
+    style = cell_text(color = "red"),
+    locations = cells_body(columns = change, rows = change > 0)
+  ) |>
+  tab_style(
+    style = cell_text(color = "darkgreen"),
+    locations = cells_body(columns = change, rows = change < 0)
+  ) |>
+  tab_style(
+    style = cell_text(color = "#494949"),
+    locations = cells_body(columns = change, rows = change == 0)
+  ) |>
+  tab_style(
+    style = cell_text(color = "red"),
+    locations = cells_body(columns = change1, rows = change1 > 0)
+  ) |>
+  tab_style(
+    style = cell_text(color = "darkgreen"),
+    locations = cells_body(columns = change1, rows = change1 < 0)
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("right"),
+      weight = px(4),
+      color = "#ececec",
+      style = "solid"
+    ),
+    locations = cells_column_labels(
+      columns = c(seq(12, 18, 2), "p8")
+    )
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("top"),
+      weight = px(2),
+      color = "#ececec",
+      style = "solid"
+    ),
+    locations = cells_stub()
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("left"),
+      weight = px(2),
+      color = "#ececec",
+      style = "solid"
+    ),
+    locations = cells_column_labels(columns = 11)
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("right", "left"),
+      weight = px(4),
+      color = "#ececec",
+      style = "solid"
+    ),
+    locations =
+      cells_column_spanners(
+        spanners = c("deploy", "nondeploy", "percent")
+      )
+  ) |>
+  tab_style(
+    style = cell_borders(
+      sides = c("right"),
+      weight = px(4),
+      color = "#ececec",
+      style = "solid"
+    ),
+    locations = cells_body(columns = c(seq(12, 18, 2), "p8"))
+  ) |>
+  tab_style(
+    style = "border-top-style: solid; border-top-width: 4px; border-top-color: #ececec; color: #494949; text-align: center; vertical-align: middle;",
+    locations = cells_stubhead()
+  ) |>
+  tab_style(style = cell_text(align = "center"), locations = cells_title()) |>
+  tab_stubhead("Country") |>
+  tab_header(
+    title = html(stringr::str_replace(add_text_img(
+      "Estimated Nuclear Warhead Inventories, 2023",
+      url = "warhead.png",
+      height = 50,
+      left = TRUE
+    ), pattern = "vertical-align: top", "vertical-align: middle")),
+    subtitle = md("Strategic warheads are designed for use away from the battlefield, such as against military bases, arms industries orinfrastructure.<br>Deployed are those on ballistic missiles, submarines, or bomber bases. Retired are those queued for dismantlement.<br>Stockpiles include warheads assigned to military forces, but exclude retired warheads queued for dismantlement.</br>")
+  ) |>
+  tab_footnote(
+    md("The exact number of countries' warheads is secret, and the estimates are based on publicly available information, historical records, and occasional leaks. Warheads vary substantially in their power."),
+    locations = cells_title(groups = "title")
+  ) |>
+  tab_footnote(
+    md("Each point represents the corresponding value at a 10 year interval starting from 1945 till 2023"),
+    locations = cells_column_spanners(spanners = "trend")
+  ) |>
+  tab_source_note(md("Sourced from [Federation of American Scientists (2023) – with minor processing by Our World in Data](https://ourworldindata.org/nuclear-weapons)")) |>
+  gt_theme_guardian() |>
+  opt_css(
+    css = "
+    .gt_table {
+      border-top-color: #ececec !important;
+      border-bottom-color: #ececec !important;
+      border-bottom-width: 3px !important;
+    }
+    .gt_col_headings {
+      border-top-color: #ececec !important;
+      border-top-width: 3px !important;
+    }
+    .gt_subtitle, .gt_footnote, .gt_sourcenote {
+      font-size: 12px !important;
+    }
+    .svglite text {
+      font-size: 8px !important;
+      text-anchor: start !important;
+    }
+    .svglite line {
+      display: none !important;
+    }
+    "
+  )
+```
