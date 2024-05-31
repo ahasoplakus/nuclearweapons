@@ -49,22 +49,20 @@ After increasing for almost half a century after their creation in the 1940s, nu
 ```{r}
 ## Load required packages
 library(dplyr)
-library(tidyr)
-library(purrr)
+library(tidyr, include.only = "pivot_wider")
+library(purrr, include.only = c("map", "set_names"))
+library(stringr, include.only = "str_replace")
+library(rlang, include.only = "parse_expr")
 library(gt)
 library(gtExtras)
 ```
 
 ```{r}
-cut <- seq(1955, 2025, 10)
-time_period <-
-  map(set_names(c("p", "t"), c("period1", "period2")), \(prefix) {
-    map(seq_along(cut), \(i) paste0("Year < ", cut[i], ' ~ "', prefix, i, '"'))
-  })
-
+## function to summarize parameter of interest i.e. Nuclear Stockpiles, Number
+## of Tests Conducted
 summ_fun <- function(df, var, period, last = FALSE) {
   df |>
-    mutate(timeline = case_when(!!!map(period, rlang::parse_expr))) |>
+    mutate(timeline = case_when(!!!map(period, parse_expr))) |>
     group_by(across(c("Entity", "Code", "timeline"))) |>
     summarize(
       val = if_else(
@@ -81,10 +79,22 @@ summ_fun <- function(df, var, period, last = FALSE) {
 ```
 
 ```{r}
+## creating two groups of time periods for stockpile and nuclear test
+## nanoplots respectively
+time_period <-
+  map(set_names(c("p", "t"), c("period1", "period2")), \(prefix) {
+    cut <- seq(1955, 2025, 10)
+    map(seq_along(cut), \(i) paste0("Year < ", cut[i], ' ~ "', prefix, i, '"'))
+  })
+## reading data
 data_list <-
   map(c("inventories.csv", "stockpiles.csv", "tests.csv"), readr::read_csv) |>
   set_names("inven", "stock", "tests")
+```
 
+```{r}
+## combining all summarized data in one `data.frame` to display the final
+## table
 data_clean <- data_list$stock |>
   filter(!Code %in% c("OWID_WRL", "ZAF")) |>
   summ_fun(
@@ -299,7 +309,7 @@ data_clean |>
   tab_style(style = cell_text(align = "center"), locations = cells_title()) |>
   tab_stubhead("Country") |>
   tab_header(
-    title = html(stringr::str_replace(add_text_img(
+    title = html(str_replace(add_text_img(
       "Estimated Nuclear Warhead Inventories, 2023",
       url = "warhead.png",
       height = 50,
