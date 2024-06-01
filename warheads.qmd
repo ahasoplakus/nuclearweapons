@@ -198,13 +198,13 @@ data_clean |>
   cols_label(
     11 ~ "Strategic",
     12 ~ "Non-strategic",
-    13 ~ "Reserved",
+    13 ~ "In Reserve",
     14 ~ "Retired",
     fa1 ~ "",
     fa2 ~ "",
     change ~ md("Change (+/-)<br>(1945-1985)"),
     change1 ~ md("Change (+/-)<br>(1985-2023)"),
-    p8 ~ md("Total (2023)")
+    p8 ~with_tooltip("Total (2023)", "Deployed + In Reserve")
   ) |>
   cols_width(
     change ~ px(120),
@@ -347,6 +347,9 @@ data_clean |>
     }
     .svglite line {
       display: none !important;
+    }
+    abbr[title] {
+      color: #005689 !important;
     }
     "
   )
