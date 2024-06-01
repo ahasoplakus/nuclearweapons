@@ -60,7 +60,7 @@ library(gtExtras)
 ```{r}
 ## function to summarize parameter of interest i.e. Nuclear Stockpiles, Number
 ## of Tests Conducted
-summ_fun <- function(df, var, period, last = FALSE) {
+summarize_weapons <- function(df, var, period, last = FALSE) {
   df |>
     mutate(timeline = case_when(!!!map(period, parse_expr))) |>
     group_by(across(c("Entity", "Code", "timeline"))) |>
@@ -79,8 +79,8 @@ summ_fun <- function(df, var, period, last = FALSE) {
 ```
 
 ```{r}
-## creating two groups of time periods for stockpile and nuclear test
-## nanoplots respectively
+## creating two groups of `case_when` conditions to create time periods for 
+## stockpile and nuclear test nanoplots respectively
 time_period <-
   map(set_names(c("p", "t"), c("period1", "period2")), \(prefix) {
     cut <- seq(1955, 2025, 10)
@@ -97,7 +97,7 @@ data_list <-
 ## table
 data_clean <- data_list$stock |>
   filter(!Code %in% c("OWID_WRL", "ZAF")) |>
-  summ_fun(
+  summarize_weapons(
     `Number of nuclear warheads`,
     time_period$period1,
     TRUE
@@ -111,7 +111,7 @@ data_clean <- data_list$stock |>
     change1 = p8 - p4
   ) |>
   left_join(
-    summ_fun(
+    summarize_weapons(
       data_list$tests,
       `Number of nuclear weapons tests`,
       time_period$period2
@@ -315,7 +315,7 @@ data_clean |>
       height = 50,
       left = TRUE
     ), pattern = "vertical-align: top", "vertical-align: middle")),
-    subtitle = md("Strategic warheads are designed for use away from the battlefield, such as against military bases, arms industries orinfrastructure.<br>Deployed are those on ballistic missiles, submarines, or bomber bases. Retired are those queued for dismantlement.<br>Stockpiles include warheads assigned to military forces, but exclude retired warheads queued for dismantlement.</br>")
+    subtitle = md("Strategic warheads are designed for use away from the battlefield, such as against military bases, arms industries or infrastructure.<br>Deployed are those on ballistic missiles, submarines, or bomber bases. Retired are those queued for dismantlement.<br>Stockpiles include warheads assigned to military forces, but exclude retired warheads queued for dismantlement.</br>")
   ) |>
   tab_footnote(
     md("The exact number of countries' warheads is secret, and the estimates are based on publicly available information, historical records, and occasional leaks. Warheads vary substantially in their power."),
@@ -349,7 +349,7 @@ data_clean |>
       display: none !important;
     }
     abbr[title] {
-      color: #005689 !important;
+      color: #494949 !important;
     }
     "
   )
